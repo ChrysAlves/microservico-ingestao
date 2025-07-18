@@ -1,4 +1,4 @@
-// src/infra/controllers/ingestao.controller.ts (VERSÃO ORIGINAL RESTAURADA)
+// src/infra/controllers/ingestao.controller.ts (Versão com subdiretórios)
 
 import { Controller, Post, UseInterceptors, UploadedFiles, Body, HttpStatus, HttpCode, Get } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
@@ -6,14 +6,30 @@ import { AgendarProcessamentoUseCase } from '@domain/ingestao/use-cases/agendar-
 import { ReceberSipHttpDto } from '@infra/http/dtos/receber-sip.http.dto';
 import * as multer from 'multer';
 import * as path from 'path';
+import * as fs from 'fs'; // Importa o módulo de sistema de arquivos do Node.js
 
-// O diretório que criamos no Dockerfile
-const UPLOADS_TEMP_DIR = '/app/temp_ingestao_sip';
+const UPLOADS_BASE_DIR = '/app/temp_ingestao_sip';
 
+// Configuração de armazenamento dinâmica
 const storage = multer.diskStorage({
-  destination: UPLOADS_TEMP_DIR,
+  destination: (req, file, cb) => {
+    // Pega o transferId do corpo da requisição
+    const transferId = req.body.transferId;
+    if (!transferId) {
+      // Retorna um erro se o transferId não for fornecido
+      return cb(new Error('transferId é obrigatório no corpo da requisição!'), '');
+    }
+    
+    // Cria um caminho de pasta único para este pedido
+    const destinationPath = path.join(UPLOADS_BASE_DIR, transferId);
+    
+    // Cria o diretório se ele não existir
+    fs.mkdirSync(destinationPath, { recursive: true });
+    
+    // Diz ao multer para salvar os arquivos neste diretório único
+    cb(null, destinationPath);
+  },
   filename: (req, file, cb) => {
-    // Salva o arquivo com seu nome original
     cb(null, file.originalname);
   },
 });
@@ -24,12 +40,9 @@ export class IngestaoController {
 
   @Get('health')
   checkHealth() {
-    const message = 'Microsserviço de Ingestão está no ar e respondendo!';
-    console.log(`[IngestaoController] Rota de health-check acionada. Retornando: "${message}"`);
-    return { status: 'ok', message: message };
+    return { status: 'ok' };
   }
 
-  // --- ENDPOINT POST ORIGINAL RESTAURADO ---
   @Post()
   @UseInterceptors(FilesInterceptor('files', 10, { storage }))
   @HttpCode(HttpStatus.ACCEPTED)
@@ -38,12 +51,15 @@ export class IngestaoController {
     @Body() body: ReceberSipHttpDto,
   ) {
     const { transferId, metadados } = body;
-    console.log(`[IngestaoController] Recebido SIP para pedido: ${transferId} com ${files.length} arquivos.`);
-    console.log(`[IngestaoController] Arquivos salvos em: ${UPLOADS_TEMP_DIR}`);
+    const sipLocation = path.join(UPLOADS_BASE_DIR, transferId); // O caminho exato do SIP
 
+    console.log(`[IngestaoController] Recebido SIP para pedido: ${transferId} com ${files.length} arquivos.`);
+    console.log(`[IngestaoController] Arquivos salvos em: ${sipLocation}`);
+
+    // Envia a localização EXATA do SIP para o Kafka
     await this.agendarProcessamentoUseCase.execute({
       transferId,
-      sipLocation: UPLOADS_TEMP_DIR, // Informa ao processador onde os arquivos estão
+      sipLocation: sipLocation, 
       metadados: metadados ? JSON.parse(metadados) : {},
     });
 

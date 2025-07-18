@@ -1,14 +1,21 @@
-# Dockerfile da Ingestão (Modo Desenvolvimento Corrigido)
-FROM node:20-alpine
-WORKDIR /app
+# Dockerfile para o Microsserviço de Ingestão (Correção Final)
 
-# Cria o diretório de upload e dá a permissão correta para o usuário 'node'
-RUN mkdir -p /app/temp_ingestao_sip && chown -R node:node /app
+FROM node:20-alpine
+
+RUN apk add --no-cache curl
+
+WORKDIR /app
 
 COPY package*.json ./
 RUN npm install
 
+RUN mkdir -p /app/temp_ingestao_sip
 
-USER node
+
+COPY . .
+
+
 EXPOSE 3001
+
+
 CMD ["npm", "run", "start:dev"]
