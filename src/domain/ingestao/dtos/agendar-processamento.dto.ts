@@ -1,5 +1,6 @@
 export class AgendarProcessamentoDto {
   transferId!: string;
-  sipLocation!: string; // Caminho no sistema de arquivos onde o SIP foi salvo
+  sipLocation!: string; 
   metadados: any;
+  ra!: string; 
 }

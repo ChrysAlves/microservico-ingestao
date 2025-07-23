@@ -1,0 +1,16 @@
+# Arquivo: ../microservico-ingestao/.dockerignore
+
+# Ignora dependências do Node para não copiar do host
+node_modules
+
+# Ignora a pasta de build/distribuição
+dist
+
+# Ignora logs e arquivos de ambiente local
+npm-debug.log
+.env
+
+# Ignora arquivos do Git e do VSCode
+.git
+.gitignore
+.vscode
