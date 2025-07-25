@@ -6,7 +6,7 @@ export class ReceberSipHttpDto {
   transferId!: string;
 
   @IsString()
-  @IsJSON() // Garante que é uma string JSON válida
+  @IsJSON()
   @IsOptional()
   metadados?: string;
 }

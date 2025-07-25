@@ -17,7 +17,6 @@ export class InternalController {
     const filePath = join('/app/temp_ingestao_sip', transferId, filename);
     console.log(`[InternalController] Tentando servir o arquivo de: ${filePath}`);
 
-    // Verifica se o arquivo existe
     if (!existsSync(filePath)) {
       console.error(`[InternalController] ARQUIVO NÃO ENCONTRADO: ${filePath}`);
       throw new NotFoundException(`Arquivo temporário não encontrado em ${filePath}`);
@@ -25,13 +24,8 @@ export class InternalController {
 
     try {
       const fileStream = createReadStream(filePath);
-
-      // Listener de erro no stream. Isso é CRUCIAL para evitar crashes.
-      // Se o stream falhar (ex: erro de permissão), ele não vai travar o servidor.
       fileStream.on('error', (err) => {
         console.error(`[InternalController] ERRO NO STREAM do arquivo: ${filePath}`, err);
-        // A essa altura, não podemos mais enviar uma resposta de erro HTTP,
-        // mas o log nos dirá exatamente o que aconteceu.
       });
 
       res.set({

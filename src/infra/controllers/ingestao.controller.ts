@@ -49,12 +49,11 @@ export class IngestaoController {
 
     const parsedMetadados = metadados ? JSON.parse(metadados) : {};
 
-    // Envia a localização EXATA do SIP e o RA para o Kafka
     await this.agendarProcessamentoUseCase.execute({
       transferId,
       sipLocation: sipLocation,
       metadados: parsedMetadados,
-      ra: parsedMetadados.ra, // ADICIONADO: Extrai o RA dos metadados
+      ra: parsedMetadados.ra, 
     });
 
     return {

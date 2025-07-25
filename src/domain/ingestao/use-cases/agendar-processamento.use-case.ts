@@ -9,15 +9,14 @@ export class AgendarProcessamentoUseCase {
   constructor(private readonly kafkaProducer: KafkaProducerService) {}
 
   async execute(payload: AgendarProcessamentoDto): Promise<void> {
-    const { transferId, sipLocation, metadados, ra } = payload; // ADICIONADO: Recebe o RA
+    const { transferId, sipLocation, metadados, ra } = payload; 
     console.log(`[AgendarProcessamentoUseCase] Agendando processamento para pedido: ${transferId}`);
 
-    // Mensagem que será consumida pelo Microsserviço de Processamento (Python)
     const message = {
       transferId,
       sipLocation,
-      metadados, // Mantemos os metadados completos
-      ra, // ADICIONADO: 'ra' como campo de primeiro nível
+      metadados, 
+      ra, 
     };
 
     await this.kafkaProducer.sendMessage({
