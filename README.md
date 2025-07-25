@@ -1,98 +1,161 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Microsserviço de Ingestão - Sistema de Preservação Digital
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+## Descrição
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+O **Microsserviço de Ingestão** atua como a "portaria" do sistema de preservação digital. É responsável por receber os SIPs (Submission Information Packages) do Microsserviço Mapoteca, realizar as primeiras validações e encaminhá-los para processamento através do Kafka.
 
-## Description
+## Função Principal
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- **Recepção de SIPs**: Recebe pacotes de submissão (arquivos + metadados) do Microsserviço Mapoteca
+- **Armazenamento Temporário**: Salva os arquivos em diretório temporário para processamento
+- **Publicação no Kafka**: Notifica o Microsserviço de Processamento sobre novos SIPs disponíveis
 
-## Project setup
+## Arquitetura e Comunicação
 
-```bash
-$ npm install
+### Posição na Arquitetura
+```
+Front-End → Middleware → Mapoteca → **INGESTÃO** → Kafka → Processamento
 ```
 
-## Compile and run the project
+### Comunicações
 
-```bash
-# development
-$ npm run start
+#### Entrada (Recebe de):
+- **Microsserviço Mapoteca** (API REST)
+  - Recebe SIPs com arquivos e metadados
+  - Endpoint: `POST /ingest`
 
-# watch mode
-$ npm run start:dev
+#### Saída (Envia para):
+- **Kafka** (Message Broker)
+  - Publica no tópico: `ingest-requests`
+  - Notifica o Microsserviço de Processamento
 
-# production mode
-$ npm run start:prod
+### Restrições Importantes
+- **APENAS** o Microsserviço Mapoteca pode se comunicar com este serviço
+- Não há comunicação direta com outros microsserviços (Processamento, Gestão de Dados, Acesso, MinIO)
+
+## Fluxo de Operação
+
+### 1. Fluxo de Upload (Ingestão)
+```
+1. Mapoteca → Ingestão (API REST): Envia SIP
+2. Ingestão: Salva arquivos temporariamente
+3. Ingestão → Kafka: Publica mensagem no tópico 'ingest-requests'
+4. Kafka → Processamento: Entrega mensagem para processamento
 ```
 
-## Run tests
+### Detalhamento do Fluxo:
+1. **Recepção**: Microsserviço Mapoteca envia SIP via API REST
+2. **Validação Inicial**: Verifica integridade básica dos dados recebidos
+3. **Armazenamento Temporário**: Salva arquivos em diretório temporário
+4. **Notificação**: Publica mensagem no Kafka informando novo SIP disponível
+5. **Confirmação**: Retorna status de sucesso para o Mapoteca
 
-```bash
-# unit tests
-$ npm run test
+## Tecnologias
 
-# e2e tests
-$ npm run test:e2e
+- **Runtime**: Node.js
+- **Linguagem**: TypeScript
+- **Framework**: NestJS
+- **Message Broker**: Apache Kafka
+- **Armazenamento**: Sistema de arquivos local (temporário)
 
-# test coverage
-$ npm run test:cov
+
+
+## Variáveis de Ambiente
+
+```env
+# Kafka Configuration
+KAFKA_BROKER_URL=localhost:9092
+KAFKA_TOPIC_INGEST_REQUESTS=ingest-requests
+
+# Temporary Storage
+TEMP_STORAGE_PATH=/tmp/ingest
+
+# API Configuration
+PORT=3001
 ```
 
-## Deployment
+## Endpoints da API
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+### POST /ingest
+Recebe um SIP para processamento.
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+**Request:**
+```json
+{
+  "sipId": "uuid",
+  "metadata": {
+    "title": "string",
+    "creator": "string",
+    "description": "string"
+  },
+  "files": [
+    {
+      "filename": "string",
+      "content": "base64 | multipart"
+    }
+  ]
+}
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+**Response:**
+```json
+{
+  "status": "success",
+  "sipId": "uuid",
+  "message": "SIP received and queued for processing"
+}
+```
 
-## Resources
+## Estrutura de Mensagem Kafka
 
-Check out a few resources that may come in handy when working with NestJS:
+### Tópico: ingest-requests
+```json
+{
+  "sipId": "uuid",
+  "timestamp": "ISO8601",
+  "tempPath": "/tmp/ingest/uuid",
+  "metadata": {
+    "title": "string",
+    "creator": "string",
+    "description": "string"
+  },
+  "files": [
+    {
+      "filename": "string",
+      "path": "/tmp/ingest/uuid/filename",
+      "size": "number"
+    }
+  ]
+}
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+## Monitoramento e Logs
 
-## Support
+- **Health Check**: `GET /health`
+- **Metrics**: Integração com Prometheus
+- **Logs**: Estruturados em JSON para análise
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+## Considerações de Segurança
 
-## Stay in touch
+- Validação de tipos de arquivo
+- Limite de tamanho de upload
+- Sanitização de nomes de arquivo
+- Autenticação via token JWT (do Mapoteca)
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+## Tratamento de Erros
 
-## License
+- **Arquivo corrompido**: Rejeita SIP e notifica Mapoteca
+- **Falha no Kafka**: Retry automático com backoff exponencial
+- **Espaço em disco**: Monitoramento e limpeza automática de arquivos temporários
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+## Relacionamento com Outros Microsserviços
+
+### Microsserviço Mapoteca
+- **Papel**: Orquestrador central que envia SIPs
+- **Comunicação**: API REST síncrona
+- **Dados trocados**: SIPs completos (arquivos + metadados)
+
+### Microsserviço de Processamento
+- **Papel**: Consumidor das mensagens Kafka
+- **Comunicação**: Assíncrona via Kafka
+- **Dados trocados**: Notificações de novos SIPs disponíveis
